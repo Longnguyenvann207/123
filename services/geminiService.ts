@@ -116,7 +116,16 @@ export const generatePythonScript = async (
              \`final = CompositeVideoClip(clips)\`
              OR easier method: \`concatenate_videoclips([clip1, clip2], padding=-fade_duration, method='compose')\` (Requires applying \`.crossfadein(fade_duration)\` to the second clip).
            - **Fade to Black (Dip)**: Apply \`.fadeout(d).fadein(d)\` to clips individually before concatenating.
-           - **Slide**: Use \`CompositeVideoClip\`. Set \`.with_position\` using a lambda or function to animate x/y over time (e.g. entering from left).
+           - **Slide (Trượt)**:
+             - Use \`CompositeVideoClip\`. This cannot be done with simple concatenation.
+             - Concept: The incoming clip moves from outside the screen to cover the outgoing clip.
+             - **Logic**:
+               1. Define duration of slide (e.g., 1s).
+               2. Set the start time of Clip B to overlap Clip A by this duration.
+               3. Use \`.with_position()\` on Clip B with a lambda function.
+               4. Example (Slide In from Left): \`lambda t: (int(w * (t/d) - w), 'center')\` where w is width, d is duration.
+               5. Example (Slide In from Right): \`lambda t: (int(w - w * (t/d)), 'center')\`.
+               6. Use \`CompositeVideoClip([clipA, clipB.with_start(t_start).with_position(...)])\`.
          - **Transitions (FFmpeg)**: Use \`xfade\` filter. Example: \`-filter_complex "[0][1]xfade=transition=fade:duration=1:offset=10"\`.
 
       9. Impossible Tasks:

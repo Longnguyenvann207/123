@@ -4,7 +4,7 @@ import { LibrarySelector } from './components/LibrarySelector';
 import { CodeViewer } from './components/CodeViewer';
 import { Button } from './components/Button';
 import { LibraryPreference } from './types';
-import { Wand2, PlayCircle, AlertCircle, FileVideo, Terminal, Sparkles, Upload, Link as LinkIcon, FolderOpen, X, Plus, ZoomIn, SlidersHorizontal, Scissors, Type, FileText, Volume2, VolumeX, Music, ArrowRightLeft, CheckCircle, FlipHorizontal, FlipVertical, Image as ImageIcon, Mic, Square, Download, Settings, Moon, Sun, Palette, Merge, Pipette, MicOff, Paintbrush } from 'lucide-react';
+import { Wand2, PlayCircle, AlertCircle, FileVideo, Terminal, Sparkles, Upload, Link as LinkIcon, FolderOpen, X, Plus, ZoomIn, SlidersHorizontal, Scissors, Type, FileText, Volume2, VolumeX, Music, ArrowRightLeft, CheckCircle, FlipHorizontal, FlipVertical, Image as ImageIcon, Mic, Square, Download, Settings, Moon, Sun, Palette, Merge, Pipette, MicOff, Paintbrush, MoveRight } from 'lucide-react';
 
 // Color Palette Options
 const THEME_COLORS = [
@@ -66,8 +66,12 @@ export default function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  
+  // Transition States
   const [transType, setTransType] = useState<'crossfade' | 'fade_black' | 'slide'>('crossfade');
   const [transDuration, setTransDuration] = useState(1.0);
+  const [transDirection, setTransDirection] = useState<'left' | 'right' | 'top' | 'bottom'>('left');
+
   const [flipDirection, setFlipDirection] = useState<'horizontal' | 'vertical'>('horizontal');
   const [thumbMode, setThumbMode] = useState<'middle' | 'random' | 'specific'>('middle');
   const [thumbTime, setThumbTime] = useState('');
@@ -161,7 +165,17 @@ export default function App() {
     if(audioMode==='replace') p += ` FadeIn: ${audioFadeIn}s, FadeOut: ${audioFadeOut}s.`;
     setPrompt(prev => prev + p); setActiveTool(null); 
   };
-  const handleAddTransition = () => { setPrompt(prev => prev + ` Nối video dùng hiệu ứng ${transType} trong ${transDuration}s.`); setActiveTool(null); };
+  
+  const handleAddTransition = () => { 
+    let text = ` Nối video dùng hiệu ứng ${transType}`;
+    if (transType === 'slide') {
+      text += ` (hướng ${transDirection})`;
+    }
+    text += ` trong ${transDuration}s.`;
+    setPrompt(prev => prev + text); 
+    setActiveTool(null); 
+  };
+  
   const handleAddFlip = () => { setPrompt(prev => prev + ` Lật video ${flipDirection}.`); setActiveTool(null); };
   const handleAddThumbnail = () => { setPrompt(prev => prev + ` Tạo thumbnail (${thumbMode}) tại ${thumbTime}.`); setActiveTool(null); };
   
@@ -331,7 +345,7 @@ export default function App() {
                  </div>
                </div>
 
-               {/* Existing Tool Panels (Zoom, Trim, Subtitle, Audio, Transition, Flip, Thumbnail) - Condensed for brevity in output but logic remains */}
+               {/* Existing Tool Panels (Zoom, Trim, Subtitle, Audio, Flip, Thumbnail) */}
                {activeTool === 'zoom' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><ZoomIn size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Cấu hình Zoom Video</span></div>
@@ -343,7 +357,6 @@ export default function App() {
                  </div>
                )}
                
-               {/* Trim Panel */}
                {activeTool === 'trim' && (
                   <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Scissors size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Cắt / Trim Video</span></div>
@@ -355,7 +368,6 @@ export default function App() {
                   </div>
                )}
 
-               {/* Subtitle Panel */}
                {activeTool === 'subtitle' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Type size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Phụ Đề</span></div>
@@ -382,7 +394,6 @@ export default function App() {
                  </div>
                )}
 
-               {/* Audio Panel */}
                {activeTool === 'audio' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Volume2 size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Âm Thanh</span></div>
@@ -411,20 +422,45 @@ export default function App() {
                  </div>
                )}
 
-               {/* Transition Panel */}
+               {/* Transition Panel - UPDATED */}
                {activeTool === 'transition' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><ArrowRightLeft size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Hiệu ứng Nối</span></div>
+                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
+                      <ArrowRightLeft size={16} className="text-[var(--accent-color)]" />
+                      <span className="text-sm font-semibold text-[var(--text-main)]">Hiệu ứng Nối</span>
+                    </div>
                     <div className="space-y-4">
-                       <div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Loại</label><select value={transType} onChange={(e) => setTransType(e.target.value as any)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-2 focus:outline-none focus:border-[var(--accent-color)]"><option value="crossfade">Crossfade (Chồng mờ)</option><option value="fade_black">Fade to Black (Đen)</option><option value="slide">Slide (Trượt)</option></select></div>
-                       <div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Thời lượng: {transDuration}s</label><input type="range" min="0.5" max="3.0" step="0.5" value={transDuration} onChange={(e) => setTransDuration(parseFloat(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" /></div>
+                       <div>
+                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Loại</label>
+                          <select value={transType} onChange={(e) => setTransType(e.target.value as any)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-2 focus:outline-none focus:border-[var(--accent-color)]">
+                             <option value="crossfade">Crossfade (Chồng mờ)</option>
+                             <option value="fade_black">Fade to Black (Đen)</option>
+                             <option value="slide">Slide (Trượt)</option>
+                          </select>
+                       </div>
+                       
+                       {transType === 'slide' && (
+                         <div className="animate-in fade-in slide-in-from-top-1">
+                            <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Hướng trượt (Video sau vào)</label>
+                            <div className="flex space-x-2">
+                               <button onClick={() => setTransDirection('left')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'left' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="rotate-180 mb-1" /><span className="text-[10px]">Trái</span></button>
+                               <button onClick={() => setTransDirection('right')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'right' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="mb-1" /><span className="text-[10px]">Phải</span></button>
+                               <button onClick={() => setTransDirection('top')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'top' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="-rotate-90 mb-1" /><span className="text-[10px]">Trên</span></button>
+                               <button onClick={() => setTransDirection('bottom')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'bottom' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="rotate-90 mb-1" /><span className="text-[10px]">Dưới</span></button>
+                            </div>
+                         </div>
+                       )}
+
+                       <div>
+                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Thời lượng: {transDuration}s</label>
+                          <input type="range" min="0.5" max="3.0" step="0.5" value={transDuration} onChange={(e) => setTransDuration(parseFloat(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" />
+                       </div>
                     </div>
                     <button onClick={handleAddTransition} className="w-full mt-4 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Áp dụng</button>
                  </div>
                )}
 
                {/* New Advanced Panels */}
-               {/* Chroma Key Panel */}
                {activeTool === 'chroma' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
@@ -453,7 +489,6 @@ export default function App() {
                  </div>
                )}
 
-               {/* Silence Removal Panel */}
                {activeTool === 'silence' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
@@ -472,7 +507,6 @@ export default function App() {
                  </div>
                )}
 
-               {/* Color Filter Panel */}
                {activeTool === 'filter' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
