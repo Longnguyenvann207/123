@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AutoEditPy - Professional Video Tool</title>
+    <!-- Keep Tailwind CDN for simple styling without complex setup -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      /* Fluent UI / Modern Reset */
+      :root {
+        /* Default Dark Mode & Blue Accent */
+        --bg-main: #111111;
+        --bg-sidebar: #1c1c1c;
+        --bg-card: #252525;
+        --bg-hover: #333333;
+        --border-color: #333333;
+        --text-main: #f5f5f5;
+        --text-secondary: #9ca3af;
+        --accent-color: #0078d4;
+        --accent-hover: #106ebe;
+        --accent-dim: rgba(0, 120, 212, 0.2);
+      }
+
+      body {
+        font-family: 'Segoe UI', 'Inter', sans-serif;
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        -webkit-font-smoothing: antialiased;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      
+      .font-mono {
+        font-family: 'JetBrains Mono', Consolas, monospace;
+      }
+
+      /* Fluent Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #444; 
+        border-radius: 5px;
+        border: 2px solid var(--bg-main); /* Creates padding effect */
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #666; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <!-- Vite entry point -->
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

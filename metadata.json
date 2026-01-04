@@ -1,0 +1,7 @@
+{
+  "name": "AutoEditPy",
+  "description": "Trợ lý AI tạo mã Python để tải video từ URL hoặc xử lý video cục bộ từ máy tính, cắt ghép, nối và thêm hiệu ứng tự động.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
