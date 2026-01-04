@@ -91,7 +91,23 @@ export const generatePythonScript = async (
              (Adjust x_center/y_center if the user requests zooming into a specific corner).
            - FFmpeg: Use \`scale\` and \`crop\` filters.
 
-      7. Concatenation & Transitions Logic (Apply when requested):
+      7. **Advanced Features Logic**:
+         - **Chroma Key / Green Screen**:
+           - **MoviePy**: Use \`clip.fx(vfx.mask_color, color=[r, g, b], thr=threshold, s=stiffness)\`. 
+             IMPORTANT: Convert RGB values (0-255) to specific format if needed. The function usually creates a mask. 
+             If adding a background: \`CompositeVideoClip([background_clip, masked_clip])\`.
+         - **Silence Removal (Jump Cuts)**:
+           - **Concept**: Iterate through audio chunks, find parts where volume < threshold, and keep only the loud parts.
+           - **Implementation**: Since MoviePy's \`find_objects\` isn't for audio, generate a custom function that uses \`clip.audio.iter_chunks()\`. Calculate RMS/max volume.
+           - If too complex for a single script, generate a simplified version that splits the clip into segments based on a fixed logic or recommend 'auto-editor' library. However, try to implement a basic heuristic in Python using \`numpy\` max volume check if possible.
+         - **Color Filters**:
+           - **MoviePy**:
+             - Black & White: \`clip.fx(vfx.blackwhite)\`
+             - Invert: \`clip.fx(vfx.invert_colors)\`
+             - Brightness/Contrast: \`clip.fx(vfx.colorx, factor)\` or \`clip.fx(vfx.lum_contrast, lum=..., contrast=...)\` (if available in imported vfx).
+             - Sepia: Manually apply matrix multiplication using \`clip.color_matrix\`.
+
+      8. Concatenation & Transitions Logic (Apply when requested):
          - **Simple Join**: Use \`concatenate_videoclips([clip1, clip2, ...], method='compose')\`.
          - **Transitions (MoviePy)**:
            - **Crossfade (Dissolve)**: To crossfade, you must overlap clips.
@@ -103,7 +119,7 @@ export const generatePythonScript = async (
            - **Slide**: Use \`CompositeVideoClip\`. Set \`.with_position\` using a lambda or function to animate x/y over time (e.g. entering from left).
          - **Transitions (FFmpeg)**: Use \`xfade\` filter. Example: \`-filter_complex "[0][1]xfade=transition=fade:duration=1:offset=10"\`.
 
-      8. Impossible Tasks:
+      9. Impossible Tasks:
          - If the requested library cannot perform a specific task, switch to the best alternative and explain why in the comments (in Vietnamese).
     `;
 
