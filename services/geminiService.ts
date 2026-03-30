@@ -3,7 +3,7 @@ import { LibraryPreference } from "../types";
 
 // Initialize Gemini Client
 // We assume process.env.API_KEY is available as per instructions.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const MODEL_NAME = "gemini-3-pro-preview"; // Using Pro for better coding logic
 
@@ -65,11 +65,13 @@ export const generatePythonScript = async (
          - **Subtitles / Text Overlay**:
            - **MoviePy (Text)**: Use \`TextClip(text="...", font_size=..., color='white', font='Arial')\`.
              Set duration: \`.with_duration(...)\`.
-             Set position: \`.with_position(('center', 'bottom'))\`.
+             **Positioning (IMPORTANT)**: 
+             - Handle positions like 'top-right', 'bottom-left', 'bottom-right' with small margins.
+             - Example for bottom-right: \`.with_position(('right', 'bottom'))\` or \`.with_position((clip.w - text.w - 20, clip.h - text.h - 20))\`.
              **Crucial**: Combine using \`CompositeVideoClip([base_video, text_clip])\`.
            - **MoviePy (File)**: If user provides a .srt/.vtt file, mention that \`SubtitlesClip\` requires ImageMagick, or suggest using FFmpeg for hard burning.
            - **FFmpeg**: 
-             - Text: Use \`drawtext\` filter.
+             - Text: Use \`drawtext\` filter. Use \`x=w-tw-10:y=h-th-10\` for bottom-right.
              - File: Use \`subtitles='filename.srt'\` filter (best for hard subs).
          - **Audio Processing**:
            - **MoviePy**:

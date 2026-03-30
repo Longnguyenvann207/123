@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generatePythonScript, explainScript } from './services/geminiService';
 import { LibrarySelector } from './components/LibrarySelector';
 import { CodeViewer } from './components/CodeViewer';
+import { PythonRunner } from './components/PythonRunner';
 import { Button } from './components/Button';
 import { LibraryPreference } from './types';
-import { Wand2, PlayCircle, AlertCircle, FileVideo, Terminal, Sparkles, Upload, Link as LinkIcon, FolderOpen, X, Plus, ZoomIn, SlidersHorizontal, Scissors, Type, FileText, Volume2, VolumeX, Music, ArrowRightLeft, CheckCircle, FlipHorizontal, FlipVertical, Image as ImageIcon, Mic, Square, Download, Settings, Moon, Sun, Palette, Merge, Pipette, MicOff, Paintbrush, MoveRight } from 'lucide-react';
+import { Wand2, PlayCircle, AlertCircle, FileVideo, Terminal, Sparkles, Upload, Link as LinkIcon, FolderOpen, X, Plus, ZoomIn, SlidersHorizontal, Scissors, Type, FileText, Volume2, VolumeX, Music, ArrowRightLeft, CheckCircle, FlipHorizontal, FlipVertical, Image as ImageIcon, Mic, Square, Download, Settings, Moon, Sun, Palette, Merge, Pipette, MicOff, Paintbrush, MoveRight, LayoutGrid } from 'lucide-react';
 
 // Color Palette Options
 const THEME_COLORS = [
@@ -39,19 +40,25 @@ export default function App() {
   const [autoMerge, setAutoMerge] = useState(false);
   
   // Active Tool State
-  const [activeTool, setActiveTool] = useState<'zoom' | 'trim' | 'subtitle' | 'audio' | 'transition' | 'flip' | 'thumbnail' | 'chroma' | 'silence' | 'filter' | null>(null);
+  const [activeTool, setActiveTool] = useState<'zoom' | 'trim' | 'subtitle' | 'audio' | 'transition' | 'flip' | 'thumbnail' | 'chroma' | 'silence' | 'filter' | 'python' | null>(null);
+  const [runCode, setRunCode] = useState('');
 
   // Tool specific states
   const [zoomLevel, setZoomLevel] = useState(1.5);
   const [zoomPosition, setZoomPosition] = useState('center');
   const [trimStart, setTrimStart] = useState('');
   const [trimEnd, setTrimEnd] = useState('');
+  
+  // Subtitle Tool Enhanced States
   const [subMode, setSubMode] = useState<'text' | 'file'>('text');
   const [subText, setSubText] = useState('');
   const [subFile, setSubFile] = useState<File | null>(null);
   const [subTime, setSubTime] = useState('');
   const [subDuration, setSubDuration] = useState('');
+  const [subPosition, setSubPosition] = useState('bottom-center');
+  const [subIsFullDuration, setSubIsFullDuration] = useState(false);
   const subFileInputRef = useRef<HTMLInputElement>(null);
+
   const [audioMode, setAudioMode] = useState<'volume' | 'mute' | 'replace'>('volume');
   const [volumeLevel, setVolumeLevel] = useState(1.0);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -117,6 +124,11 @@ export default function App() {
   }, [recordingUrl]);
 
   // --- Handlers ---
+  const handleRunCode = (code: string) => {
+    setRunCode(code);
+    setActiveTool('python');
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim() && !autoMerge) return;
     
@@ -159,7 +171,19 @@ export default function App() {
   // Tool handlers
   const handleAddZoom = () => { setPrompt(prev => prev + ` Zoom video phóng đại ${zoomLevel}x vào ${zoomPosition}.`); setActiveTool(null); };
   const handleAddTrim = () => { if(trimStart||trimEnd) setPrompt(prev => prev + ` Cắt video từ ${trimStart} đến ${trimEnd}.`); setActiveTool(null); };
-  const handleAddSubtitle = () => { setPrompt(prev => prev + (subMode==='text' ? ` Thêm text "${subText}" từ ${subTime} trong ${subDuration}s.` : ` Hardcode sub file "${subFile?.name}".`)); setActiveTool(null); };
+  
+  const handleAddSubtitle = () => { 
+    let p = "";
+    if (subMode === 'text') {
+      const durText = subIsFullDuration ? "suốt toàn bộ video" : `từ giây thứ ${subTime} trong ${subDuration} giây`;
+      p = ` Thêm dòng chữ "${subText}" ở vị trí ${subPosition}, hiển thị ${durText}.`;
+    } else {
+      p = ` Hardcode sub file "${subFile?.name}".`;
+    }
+    setPrompt(prev => prev + p); 
+    setActiveTool(null); 
+  };
+
   const handleAddAudio = () => { 
     let p = audioMode==='volume' ? ` Volume ${Math.round(volumeLevel*100)}%.` : audioMode==='mute' ? ' Mute audio.' : ` Thay audio bằng "${audioSourceType==='file' ? audioFile?.name : 'recorded_voice.webm'}".`;
     if(audioMode==='replace') p += ` FadeIn: ${audioFadeIn}s, FadeOut: ${audioFadeOut}s.`;
@@ -176,7 +200,7 @@ export default function App() {
     setActiveTool(null); 
   };
   
-  const handleAddFlip = () => { setPrompt(prev => prev + ` Lật video ${flipDirection}.`); setActiveTool(null); };
+  const handleAddFlip = () => { setPrompt(prev => prev + ` Lật video theo chiều ${flipDirection === 'horizontal' ? 'ngang' : 'dọc'}.`); setActiveTool(null); };
   const handleAddThumbnail = () => { setPrompt(prev => prev + ` Tạo thumbnail (${thumbMode}) tại ${thumbTime}.`); setActiveTool(null); };
   
   // Advanced Tool Handlers
@@ -222,6 +246,28 @@ export default function App() {
     </button>
   );
 
+  const PositionGrid = ({ current, onSelect }: { current: string, onSelect: (p: string) => void }) => {
+    const positions = [
+      { id: 'top-left', label: 'TL' }, { id: 'top-center', label: 'TC' }, { id: 'top-right', label: 'TR' },
+      { id: 'center-left', label: 'CL' }, { id: 'center', label: 'C' }, { id: 'center-right', label: 'CR' },
+      { id: 'bottom-left', label: 'BL' }, { id: 'bottom-center', label: 'BC' }, { id: 'bottom-right', label: 'BR' },
+    ];
+    return (
+      <div className="grid grid-cols-3 gap-1 w-24">
+        {positions.map(p => (
+          <button
+            key={p.id}
+            onClick={() => onSelect(p.id)}
+            className={`w-7 h-7 text-[8px] flex items-center justify-center rounded border transition-colors ${current === p.id ? 'bg-[var(--accent-color)] text-white border-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-main)]'}`}
+            title={p.id}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex flex-col md:flex-row overflow-hidden font-sans selection:bg-[var(--accent-color)] selection:text-white transition-colors duration-300">
       
@@ -236,7 +282,7 @@ export default function App() {
                 <h1 className="text-lg font-bold text-[var(--text-main)] tracking-tight">AutoEditPy</h1>
                 <div className="flex items-center space-x-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  <p className="text-[11px] text-[var(--text-secondary)] font-medium">v1.4 • Ultra</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] font-medium">v1.5 • Ultra Pro</p>
                 </div>
              </div>
           </div>
@@ -324,7 +370,7 @@ export default function App() {
                <div className="flex items-center justify-between">
                  <div className="flex flex-wrap gap-2">
                     <QuickChip label="Xóa phông xanh" onClick={() => handleQuickPrompt("Xóa phông xanh (green screen) và thay bằng nền đen.")} />
-                    <QuickChip label="Cắt khoảng lặng" onClick={() => handleQuickPrompt("Tự động cắt bỏ các đoạn im lặng (silence removal).")} />
+                    <QuickChip label="Bản quyền ©" onClick={() => handleQuickPrompt("Thêm văn bản '© Năm sản xuất' vào góc dưới bên phải video, hiển thị trong suốt thời gian video.")} />
                  </div>
                  
                  <div className="flex space-x-2 overflow-x-auto pb-2 custom-scrollbar">
@@ -334,18 +380,84 @@ export default function App() {
                      { id: 'subtitle', icon: <Type size={12} />, label: 'Sub' },
                      { id: 'audio', icon: <Volume2 size={12} />, label: 'Audio' },
                      { id: 'transition', icon: <ArrowRightLeft size={12} />, label: 'Nối/FX' },
+                     { id: 'flip', icon: <FlipHorizontal size={12} />, label: 'Lật' },
                      { id: 'chroma', icon: <Pipette size={12} />, label: 'Chroma' },
                      { id: 'silence', icon: <MicOff size={12} />, label: 'Silence' },
                      { id: 'filter', icon: <Paintbrush size={12} />, label: 'Màu' },
                    ].map(t => (
-                      <button key={t.id} onClick={() => toggleTool(t.id)} className={`flex-shrink-0 flex items-center text-xs font-medium px-2 py-1.5 rounded-md border transition-all ${activeTool === t.id ? 'bg-[var(--accent-color)] text-white border-[var(--accent-color)]' : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-color)] hover:text-[var(--text-main)]'}`} title={t.label}>
+                      <button key={t.id} onClick={() => toggleTool(t.id as any)} className={`flex-shrink-0 flex items-center text-xs font-medium px-2 py-1.5 rounded-md border transition-all ${activeTool === t.id ? 'bg-[var(--accent-color)] text-white border-[var(--accent-color)]' : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-color)] hover:text-[var(--text-main)]'}`} title={t.label}>
                         <span className="mr-1.5">{t.icon}</span>{t.label}
                      </button>
                    ))}
                  </div>
                </div>
 
-               {/* Existing Tool Panels (Zoom, Trim, Subtitle, Audio, Flip, Thumbnail) */}
+               {/* Subtitle Panel */}
+               {activeTool === 'subtitle' && (
+                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                   <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Type size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Văn bản & Phụ Đề</span></div>
+                   <div className="flex space-x-2 mb-4">
+                     <button onClick={() => setSubMode('text')} className={`flex-1 py-1.5 text-xs rounded border transition-colors ${subMode === 'text' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}>Nhập Chữ</button>
+                     <button onClick={() => setSubMode('file')} className={`flex-1 py-1.5 text-xs rounded border transition-colors ${subMode === 'file' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}>File Sub</button>
+                   </div>
+                   {subMode === 'text' ? (
+                     <div className="space-y-3">
+                       <input type="text" placeholder="Nội dung văn bản..." value={subText} onChange={(e) => setSubText(e.target.value)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-3 py-2 focus:outline-none focus:border-[var(--accent-color)]" />
+                       
+                       <div className="flex justify-between items-start space-x-4">
+                          <div>
+                            <label className="block text-[10px] text-[var(--text-secondary)] mb-1.5">Vị trí</label>
+                            <PositionGrid current={subPosition} onSelect={setSubPosition} />
+                          </div>
+                          <div className="flex-1 space-y-3">
+                             <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-[var(--text-secondary)]">Toàn bộ video</span>
+                                <button 
+                                  onClick={() => setSubIsFullDuration(!subIsFullDuration)}
+                                  className={`w-7 h-4 rounded-full relative transition-colors ${subIsFullDuration ? 'bg-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border border-[var(--border-color)]'}`}
+                                >
+                                  <div className={`absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-white transition-transform ${subIsFullDuration ? 'translate-x-3' : 'translate-x-0'}`} />
+                                </button>
+                             </div>
+                             {!subIsFullDuration && (
+                               <div className="flex space-x-2 animate-in fade-in slide-in-from-right-1">
+                                 <input type="text" placeholder="S" value={subTime} onChange={(e) => setSubTime(e.target.value)} className="w-1/2 bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-[var(--accent-color)]" title="Bắt đầu (giây)" />
+                                 <input type="text" placeholder="D" value={subDuration} onChange={(e) => setSubDuration(e.target.value)} className="w-1/2 bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-[10px] rounded px-2 py-1.5 focus:outline-none focus:border-[var(--accent-color)]" title="Độ dài (giây)" />
+                               </div>
+                             )}
+                          </div>
+                       </div>
+                     </div>
+                   ) : (
+                     <div onClick={() => subFileInputRef.current?.click()} className="border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] rounded-lg p-4 cursor-pointer text-center bg-[var(--bg-hover)] transition-colors">
+                       <input type="file" ref={subFileInputRef} onChange={handleSubFileChange} accept=".srt,.vtt,.ass" className="hidden" />
+                       <FileText size={20} className="mx-auto mb-2 text-[var(--text-secondary)]" />
+                       <p className="text-xs text-[var(--text-main)]">{subFile ? subFile.name : "Chọn file .srt"}</p>
+                     </div>
+                   )}
+                   <button onClick={handleAddSubtitle} disabled={subMode === 'text' ? !subText : !subFile} className="w-full mt-4 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] disabled:opacity-50 text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Thêm văn bản</button>
+                 </div>
+               )}
+
+               {/* Flip Panel */}
+               {activeTool === 'flip' && (
+                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><FlipHorizontal size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Lật Video (Flip)</span></div>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                       <button onClick={() => setFlipDirection('horizontal')} className={`flex flex-col items-center justify-center py-3 px-2 rounded border transition-all ${flipDirection === 'horizontal' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>
+                          <FlipHorizontal size={20} className="mb-2" />
+                          <span className="text-xs font-medium">Lật Ngang</span>
+                       </button>
+                       <button onClick={() => setFlipDirection('vertical')} className={`flex flex-col items-center justify-center py-3 px-2 rounded border transition-all ${flipDirection === 'vertical' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>
+                          <FlipVertical size={20} className="mb-2" />
+                          <span className="text-xs font-medium">Lật Dọc</span>
+                       </button>
+                    </div>
+                    <button onClick={handleAddFlip} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Thêm yêu cầu lật</button>
+                 </div>
+               )}
+
+               {/* Zoom Panel */}
                {activeTool === 'zoom' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><ZoomIn size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Cấu hình Zoom Video</span></div>
@@ -366,32 +478,6 @@ export default function App() {
                     </div>
                     <button onClick={handleAddTrim} disabled={!trimStart && !trimEnd} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] disabled:opacity-50 text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Thêm yêu cầu</button>
                   </div>
-               )}
-
-               {activeTool === 'subtitle' && (
-                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                   <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Type size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Phụ Đề</span></div>
-                   <div className="flex space-x-2 mb-4">
-                     <button onClick={() => setSubMode('text')} className={`flex-1 py-1.5 text-xs rounded border transition-colors ${subMode === 'text' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}>Văn bản</button>
-                     <button onClick={() => setSubMode('file')} className={`flex-1 py-1.5 text-xs rounded border transition-colors ${subMode === 'file' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}>File Sub</button>
-                   </div>
-                   {subMode === 'text' ? (
-                     <div className="space-y-3">
-                       <input type="text" placeholder="Nội dung..." value={subText} onChange={(e) => setSubText(e.target.value)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-3 py-2 focus:outline-none focus:border-[var(--accent-color)]" />
-                       <div className="flex space-x-3">
-                         <input type="text" placeholder="Bắt đầu (s)" value={subTime} onChange={(e) => setSubTime(e.target.value)} className="w-1/2 bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-3 py-2 focus:outline-none focus:border-[var(--accent-color)]" />
-                         <input type="text" placeholder="Độ dài (s)" value={subDuration} onChange={(e) => setSubDuration(e.target.value)} className="w-1/2 bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-3 py-2 focus:outline-none focus:border-[var(--accent-color)]" />
-                       </div>
-                     </div>
-                   ) : (
-                     <div onClick={() => subFileInputRef.current?.click()} className="border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] rounded-lg p-4 cursor-pointer text-center bg-[var(--bg-hover)] transition-colors">
-                       <input type="file" ref={subFileInputRef} onChange={handleSubFileChange} accept=".srt,.vtt,.ass" className="hidden" />
-                       <FileText size={20} className="mx-auto mb-2 text-[var(--text-secondary)]" />
-                       <p className="text-xs text-[var(--text-main)]">{subFile ? subFile.name : "Chọn file .srt"}</p>
-                     </div>
-                   )}
-                   <button onClick={handleAddSubtitle} disabled={subMode === 'text' ? !subText : !subFile} className="w-full mt-4 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] disabled:opacity-50 text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Thêm phụ đề</button>
-                 </div>
                )}
 
                {activeTool === 'audio' && (
@@ -415,111 +501,46 @@ export default function App() {
                          ) : (
                             <div className="bg-[var(--bg-hover)] rounded-lg p-3 border border-[var(--border-color)] mb-3">{!recordingBlob ? (<div className="flex flex-col items-center"><div className="text-2xl font-mono text-[var(--text-main)] mb-2 font-light">{formatTime(recordingTime)}</div>{!isRecording ? (<button onClick={startRecording} className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all shadow-lg"><Mic size={16} /><span className="text-xs font-semibold">Ghi âm</span></button>) : (<div className="flex items-center space-x-3"><div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div><button onClick={stopRecording} className="flex items-center space-x-2 px-4 py-2 bg-[var(--bg-card)] text-[var(--text-main)] rounded-full border border-[var(--border-color)]"><Square size={16} /><span className="text-xs font-semibold">Dừng</span></button></div>)}</div>) : (<div className="space-y-3"><div className="flex items-center justify-between"><span className="text-xs text-green-500 font-medium flex items-center"><CheckCircle size={12} className="mr-1" /> Đã ghi</span><button onClick={() => setRecordingBlob(null)} className="text-[10px] text-[var(--text-secondary)] hover:text-red-500">Xóa</button></div><audio controls src={recordingUrl!} className="w-full h-8" /><button onClick={downloadRecording} className="w-full flex items-center justify-center py-1.5 bg-[var(--accent-dim)] text-[var(--accent-color)] text-xs rounded border border-[var(--accent-color)]"><Download size={12} className="mr-1.5" /> Tải file (.webm)</button></div>)}</div>
                          )}
-                         <div className="flex space-x-3 mb-2"><div className="flex-1"><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Fade In (s)</label><input type="number" min="0" step="0.5" value={audioFadeIn} onChange={(e) => setAudioFadeIn(parseFloat(e.target.value) || 0)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[var(--accent-color)]" /></div><div className="flex-1"><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Fade Out (s)</label><input type="number" min="0" step="0.5" value={audioFadeOut} onChange={(e) => setAudioFadeOut(parseFloat(e.target.value) || 0)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[var(--accent-color)]" /></div></div>
+                         <div className="flex space-x-3 mb-2"><div className="flex-1"><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Fade In (s)</label><input type="number" min="0" step="0.5" value={audioFadeIn} onChange={(e) => setAudioFadeIn(parseFloat(e.target.value) || 0)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[var(--accent-color)]" /></div><div className="flex-1"><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Fade Out (s)</label><input type="number" min="0" step="0.5" value={audioFadeOut} onChange={(e) => setAudioFadeOut(parseFloat(e.target.value) || 0)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-xs rounded px-2 py-1.5 focus:outline-none focus:border-[var(--accent-color)]" /></div></div>
                        </>
                     )}
                     <button onClick={handleAddAudio} disabled={audioMode === 'replace' && (audioSourceType === 'file' ? !audioFile : !recordingBlob)} className="w-full mt-2 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] disabled:opacity-50 text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Thêm yêu cầu</button>
                  </div>
                )}
 
-               {/* Transition Panel - UPDATED */}
                {activeTool === 'transition' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
-                      <ArrowRightLeft size={16} className="text-[var(--accent-color)]" />
-                      <span className="text-sm font-semibold text-[var(--text-main)]">Hiệu ứng Nối</span>
-                    </div>
+                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><ArrowRightLeft size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Hiệu ứng Nối</span></div>
                     <div className="space-y-4">
-                       <div>
-                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Loại</label>
-                          <select value={transType} onChange={(e) => setTransType(e.target.value as any)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-2 focus:outline-none focus:border-[var(--accent-color)]">
-                             <option value="crossfade">Crossfade (Chồng mờ)</option>
-                             <option value="fade_black">Fade to Black (Đen)</option>
-                             <option value="slide">Slide (Trượt)</option>
-                          </select>
-                       </div>
-                       
-                       {transType === 'slide' && (
-                         <div className="animate-in fade-in slide-in-from-top-1">
-                            <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Hướng trượt (Video sau vào)</label>
-                            <div className="flex space-x-2">
-                               <button onClick={() => setTransDirection('left')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'left' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="rotate-180 mb-1" /><span className="text-[10px]">Trái</span></button>
-                               <button onClick={() => setTransDirection('right')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'right' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="mb-1" /><span className="text-[10px]">Phải</span></button>
-                               <button onClick={() => setTransDirection('top')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'top' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="-rotate-90 mb-1" /><span className="text-[10px]">Trên</span></button>
-                               <button onClick={() => setTransDirection('bottom')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'bottom' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="rotate-90 mb-1" /><span className="text-[10px]">Dưới</span></button>
-                            </div>
-                         </div>
-                       )}
-
-                       <div>
-                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Thời lượng: {transDuration}s</label>
-                          <input type="range" min="0.5" max="3.0" step="0.5" value={transDuration} onChange={(e) => setTransDuration(parseFloat(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" />
-                       </div>
+                       <div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Loại</label><select value={transType} onChange={(e) => setTransType(e.target.value as any)} className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] text-[var(--text-main)] text-xs rounded px-2 py-2 focus:outline-none focus:border-[var(--accent-color)]"><option value="crossfade">Crossfade (Chồng mờ)</option><option value="fade_black">Fade to Black (Đen)</option><option value="slide">Slide (Trượt)</option></select></div>
+                       {transType === 'slide' && (<div className="animate-in fade-in slide-in-from-top-1"><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Hướng trượt</label><div className="flex space-x-2"><button onClick={() => setTransDirection('left')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'left' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="rotate-180 mb-1" /><span className="text-[10px]">Trái</span></button><button onClick={() => setTransDirection('right')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'right' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="mb-1" /><span className="text-[10px]">Phải</span></button><button onClick={() => setTransDirection('top')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'top' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="-rotate-90 mb-1" /><span className="text-[10px]">Trên</span></button><button onClick={() => setTransDirection('bottom')} className={`flex-1 py-1.5 border rounded flex flex-col items-center justify-center ${transDirection === 'bottom' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}`}><MoveRight size={14} className="rotate-90 mb-1" /><span className="text-[10px]">Dưới</span></button></div></div>)}
+                       <div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Thời lượng: {transDuration}s</label><input type="range" min="0.5" max="3.0" step="0.5" value={transDuration} onChange={(e) => setTransDuration(parseFloat(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" /></div>
                     </div>
                     <button onClick={handleAddTransition} className="w-full mt-4 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Áp dụng</button>
                  </div>
                )}
 
-               {/* New Advanced Panels */}
                {activeTool === 'chroma' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
-                      <Pipette size={16} className="text-[var(--accent-color)]" />
-                      <span className="text-sm font-semibold text-[var(--text-main)]">Xóa Phông Xanh (Green Screen)</span>
-                    </div>
-                    <div className="space-y-4 mb-4">
-                       <div>
-                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Màu nền cần tách</label>
-                          <div className="flex space-x-2 items-center">
-                            <input 
-                              type="color" 
-                              value={chromaColor} 
-                              onChange={(e) => setChromaColor(e.target.value)}
-                              className="w-8 h-8 rounded cursor-pointer border-none"
-                            />
-                            <span className="text-xs text-[var(--text-main)] font-mono">{chromaColor}</span>
-                          </div>
-                       </div>
-                       <div>
-                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Độ nhạy (Threshold): {chromaThreshold}</label>
-                          <input type="range" min="0.1" max="1.0" step="0.05" value={chromaThreshold} onChange={(e) => setChromaThreshold(parseFloat(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" />
-                       </div>
-                    </div>
-                    <button onClick={handleAddChroma} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Tạo script tách nền</button>
+                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Pipette size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Xóa Phông Xanh</span></div>
+                    <div className="space-y-4 mb-4"><div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Màu nền</label><div className="flex space-x-2 items-center"><input type="color" value={chromaColor} onChange={(e) => setChromaColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-none" /><span className="text-xs text-[var(--text-main)] font-mono">{chromaColor}</span></div></div><div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Độ nhạy: {chromaThreshold}</label><input type="range" min="0.1" max="1.0" step="0.05" value={chromaThreshold} onChange={(e) => setChromaThreshold(parseFloat(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" /></div></div>
+                    <button onClick={handleAddChroma} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Tạo script</button>
                  </div>
                )}
 
                {activeTool === 'silence' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
-                      <MicOff size={16} className="text-[var(--accent-color)]" />
-                      <span className="text-sm font-semibold text-[var(--text-main)]">Cắt Khoảng Lặng (Jump Cut)</span>
-                    </div>
-                    <div className="space-y-4 mb-4">
-                       <p className="text-xs text-[var(--text-secondary)]">Tự động phát hiện và cắt bỏ các đoạn không có tiếng nói để video ngắn gọn hơn.</p>
-                       <div>
-                          <label className="block text-xs text-[var(--text-secondary)] mb-1.5">Ngưỡng âm thanh (dB): {silenceThreshold}dB</label>
-                          <input type="range" min="-60" max="-10" step="1" value={silenceThreshold} onChange={(e) => setSilenceThreshold(parseInt(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" />
-                          <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1"><span>Nhạy (-60dB)</span><span>Ít nhạy (-10dB)</span></div>
-                       </div>
-                    </div>
-                    <button onClick={handleAddSilence} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Áp dụng Jump Cut</button>
+                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><MicOff size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Cắt Khoảng Lặng</span></div>
+                    <div className="space-y-4 mb-4"><p className="text-xs text-[var(--text-secondary)]">Tự động phát hiện và cắt bỏ các đoạn im lặng.</p><div><label className="block text-xs text-[var(--text-secondary)] mb-1.5">Ngưỡng âm: {silenceThreshold}dB</label><input type="range" min="-60" max="-10" step="1" value={silenceThreshold} onChange={(e) => setSilenceThreshold(parseInt(e.target.value))} className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-[var(--accent-color)]" /></div></div>
+                    <button onClick={handleAddSilence} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Áp dụng</button>
                  </div>
                )}
 
                {activeTool === 'filter' && (
                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]">
-                      <Paintbrush size={16} className="text-[var(--accent-color)]" />
-                      <span className="text-sm font-semibold text-[var(--text-main)]">Bộ Lọc Màu</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                       <button onClick={() => setFilterType('grayscale')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'grayscale' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Đen Trắng</button>
-                       <button onClick={() => setFilterType('sepia')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'sepia' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Sepia (Cổ điển)</button>
-                       <button onClick={() => setFilterType('invert')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'invert' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Đảo màu</button>
-                       <button onClick={() => setFilterType('brightness')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'brightness' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Tăng sáng</button>
-                    </div>
-                    <button onClick={handleAddFilter} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Áp dụng bộ lọc</button>
+                    <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-[var(--border-color)]"><Paintbrush size={16} className="text-[var(--accent-color)]" /><span className="text-sm font-semibold text-[var(--text-main)]">Bộ Lọc Màu</span></div>
+                    <div className="grid grid-cols-2 gap-2 mb-4"><button onClick={() => setFilterType('grayscale')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'grayscale' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Đen Trắng</button><button onClick={() => setFilterType('sepia')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'sepia' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Sepia</button><button onClick={() => setFilterType('invert')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'invert' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Đảo màu</button><button onClick={() => setFilterType('brightness')} className={`py-2 px-1 text-xs rounded border transition-all ${filterType === 'brightness' ? 'bg-[var(--accent-dim)] border-[var(--accent-color)] text-[var(--accent-color)]' : 'bg-[var(--bg-hover)] border-transparent text-[var(--text-secondary)] hover:border-[var(--border-color)]'}`}>Tăng sáng</button></div>
+                    <button onClick={handleAddFilter} className="w-full py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-color)] text-xs font-medium text-[var(--accent-color)] rounded transition-colors flex items-center justify-center"><Plus size={12} className="mr-1.5" /> Áp dụng</button>
                  </div>
                )}
 
@@ -558,11 +579,18 @@ export default function App() {
           
           {/* Code Viewer */}
           <div className="flex-1 min-h-0 shadow-2xl rounded-lg border border-[var(--border-color)]">
-            <CodeViewer code={code} isLoading={isGenerating} />
+            <CodeViewer code={code} isLoading={isGenerating} onRun={handleRunCode} />
           </div>
 
+          {/* Python Runner */}
+          {activeTool === 'python' && (
+            <div className="h-1/3 shadow-2xl rounded-lg border border-[var(--border-color)]">
+               <PythonRunner code={runCode} />
+            </div>
+          )}
+
           {/* Explanation Card */}
-          {(explanation && !isGenerating) && (
+          {(!activeTool && explanation && !isGenerating) && (
             <div className="bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-lg p-5 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500 max-h-[35%] overflow-y-auto custom-scrollbar">
                <div className="flex items-center mb-3">
                  <div className="p-1.5 bg-green-500/10 rounded-md mr-3">

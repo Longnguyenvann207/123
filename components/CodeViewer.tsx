@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Copy, Download, Check, Code2 } from 'lucide-react';
+import { Copy, Download, Check, Code2, Play } from 'lucide-react';
 import { Button } from './Button';
 
 interface CodeViewerProps {
   code: string;
   isLoading: boolean;
+  onRun?: (code: string) => void;
 }
 
-export const CodeViewer: React.FC<CodeViewerProps> = ({ code, isLoading }) => {
+export const CodeViewer: React.FC<CodeViewerProps> = ({ code, isLoading, onRun }) => {
   const [copied, setCopied] = useState(false);
 
   const cleanCode = (raw: string) => {
@@ -45,6 +46,18 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ code, isLoading }) => {
         </div>
         
         <div className="flex items-center space-x-1">
+          {onRun && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onRun(displayCode)} 
+              disabled={!code || isLoading}
+              className="h-8 w-8 p-0 text-green-400 hover:text-green-300"
+              title="Run code"
+            >
+              <Play size={16} />
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             size="sm" 
